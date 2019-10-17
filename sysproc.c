@@ -96,3 +96,18 @@ sys_haw(void)
 	cprintf("Hello World\n");
 	return 0;
 }
+
+int
+sys_yield(void)
+{
+	yield();
+	return 0;
+}
+
+void
+sys_sethipriority(void)
+{
+	//thisproc set hi
+  sethipriority();
+	return;
+}

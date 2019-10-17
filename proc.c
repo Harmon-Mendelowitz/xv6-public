@@ -14,6 +14,7 @@ struct {
 
 static struct proc *initproc;
 
+int hiprio = 0;
 int nextpid = 1;
 extern void forkret(void);
 extern void trapret(void);
@@ -231,6 +232,11 @@ exit(void)
   struct proc *p;
   int fd;
 
+  if(curproc->pid == hiprio)
+  {
+    hiprio = 0;
+  }
+
   if(curproc == initproc)
     panic("init exiting");
 
@@ -256,8 +262,9 @@ exit(void)
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->parent == curproc){
       p->parent = initproc;
-      if(p->state == ZOMBIE)
+      if(p->state == ZOMBIE){
         wakeup1(initproc);
+      }
     }
   }
 
@@ -332,6 +339,29 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
+    if(hiprio)
+    {
+      for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+      {
+        if(p->state != RUNNABLE || p->pid != hiprio)
+        continue;
+
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      c->proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      swtch(&(c->scheduler), p->context);
+      switchkvm();
+
+    }
+    release(&ptable.lock);
+    }
+    else{
+
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->state != RUNNABLE)
         continue;
@@ -351,6 +381,7 @@ scheduler(void)
       c->proc = 0;
     }
     release(&ptable.lock);
+    }
 
   }
 }
@@ -531,4 +562,11 @@ procdump(void)
     }
     cprintf("\n");
   }
+}
+
+void
+sethipriority(void)
+{
+  hiprio = myproc()->pid;
+  return;
 }
